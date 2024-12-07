@@ -5,7 +5,7 @@
 #include <vector>
 #include <filesystem>
 #include <regex>
-#include <curl/curl.h>
+#include <cstdlib>
 
 // Структура для хранения информации о библиотеке
 struct Library {
@@ -14,35 +14,17 @@ struct Library {
 };
 
 // Функция для загрузки базы данных CVE
-std::string downloadCveDatabase() {
-    CURL* curl;
-    CURLcode res;
-    std::ostringstream oss;
-
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init();
-    if (curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, "https://example.com/cve-database.csv"); // URL базы данных CVE
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, +[](char* ptr, size_t size, size_t nmemb, void* userdata) {
-            std::ostringstream* oss = static_cast<std::ostringstream*>(userdata);
-            size_t total_size = size * nmemb;
-            oss->write(ptr, total_size);
-            return total_size;
-        });
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &oss);
-        res = curl_easy_perform(curl);
-        curl_easy_cleanup(curl);
-    }
-    curl_global_cleanup();
-    return oss.str();
+void downloadCveDatabase(const std::string& url, const std::string& outputFile) {
+    std::string command = "wget -O " + outputFile + " " + url;
+    std::system(command.c_str());
 }
 
-// Функция для парсинга базы данных CVE
-std::vector<std::pair<std::string, std::string>> parseCveDatabase(const std::string& data) {
+// Функция для чтения базы данных CVE из локального файла
+std::vector<std::pair<std::string, std::string>> readCveDatabase(const std::string& filePath) {
     std::vector<std::pair<std::string, std::string>> cves;
-    std::istringstream iss(data);
+    std::ifstream file(filePath);
     std::string line;
-    while (std::getline(iss, line)) {
+    while (std::getline(file, line)) {
         std::istringstream lineStream(line);
         std::string name, version;
         std::getline(lineStream, name, ',');
@@ -80,9 +62,14 @@ void checkForVulnerabilities(const std::vector<Library>& libraries, const std::v
 }
 
 int main() {
-    std::string cveData = downloadCveDatabase();
-    auto cveDatabase = parseCveDatabase(cveData);
+    std::string cveUrl = "https://example.com/cve-database.csv"; // Укажите URL базы данных CVE
+    std::string cveFilePath = "cve-database.csv";
+
+    downloadCveDatabase(cveUrl, cveFilePath);
+    auto cveDatabase = readCveDatabase(cveFilePath);
     auto libraries = findLibraries();
     checkForVulnerabilities(libraries, cveDatabase);
+
     return 0;
 }
+
